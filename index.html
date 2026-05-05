@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PabrikLagu - Temukan Lirik Lagu Favoritmu</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
+        
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: #0f172a;
+            color: #f8fafc;
+            overflow-x: hidden;
+        }
+
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .gradient-text {
+            background: linear-gradient(90deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .suggest-item:hover {
+            background: rgba(56, 189, 248, 0.2);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 10px;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .loader {
+            border-top-color: #38bdf8;
+            animation: spinner 0.6s linear infinite;
+        }
+
+        @keyframes spinner {
+            to { transform: rotate(360deg); }
+        }
+
+        .active-speed {
+            background-color: #38bdf8 !important;
+            color: white !important;
+        }
+
+        #scroll-controls {
+            position: sticky;
+            top: 20px;
+            z-index: 40;
+        }
+
+        .ai-glow {
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-start p-4 pt-20">
+
+    <!-- Halaman Depan -->
+    <div id="landing-page" class="text-center space-y-6 max-w-2xl my-auto">
+        <div class="mb-8 flex justify-center">
+            <div class="p-4 bg-sky-500/20 rounded-full">
+                <i class="fas fa-music text-5xl text-sky-400"></i>
+            </div>
+        </div>
+        <h1 class="text-5xl md:text-6xl font-bold gradient-text">PabrikLagu</h1>
+        <p class="text-slate-400 text-lg">Cari lirik lagu favoritmu</p>
+        <button onclick="showSearch()" class="px-8 py-4 bg-sky-600 hover:bg-sky-500 transition-all rounded-full font-semibold shadow-lg shadow-sky-900/20">
+            Mulai Mencari
+        </button>
+    </div>
+
+    <!-- Aplikasi Utama -->
+    <div id="main-app" class="hidden w-full max-w-5xl space-y-6 fade-in">
+        <nav class="flex justify-between items-center mb-10">
+            <h2 class="text-2xl font-bold gradient-text cursor-pointer" onclick="location.reload()">PabrikLagu</h2>
+            <button onclick="location.reload()" class="text-slate-400 hover:text-white"><i class="fas fa-home text-xl"></i></button>
+        </nav>
+
+        <!-- Kolom Pencarian -->
+        <div class="relative w-full">
+            <div class="flex items-center glass-card rounded-2xl p-2 focus-within:ring-2 ring-sky-500 transition-all">
+                <i class="fas fa-search ml-4 text-slate-500"></i>
+                <input 
+                    type="text" 
+                    id="search-input" 
+                    placeholder="Ketik nama lagu atau penyanyi..." 
+                    class="w-full bg-transparent border-none focus:outline-none p-4 text-lg"
+                    autocomplete="off"
+                >
+                <div id="loading-spinner" class="hidden mr-4">
+                    <div class="loader ease-linear rounded-full border-2 border-t-2 border-gray-200 h-6 w-6"></div>
+                </div>
+            </div>
+
+            <!-- Dropdown Saran -->
+            <div id="suggestions" class="absolute w-full mt-2 glass-card rounded-xl overflow-hidden hidden z-50 shadow-2xl"></div>
+        </div>
+
+        <!-- Area Konten -->
+        <div id="content-display" class="w-full">
+            <div id="empty-state" class="text-center py-20 text-slate-500">
+                <i class="fas fa-microphone-alt text-6xl mb-4 opacity-20"></i>
+                <p>Masukkan judul lagu untuk melihat lirik.</p>
+            </div>
+
+            <div id="lyrics-container" class="hidden relative">
+                <!-- Kontrol Navigasi & AI -->
+                <div id="scroll-controls" class="hidden flex flex-wrap items-center justify-between gap-4 p-4 mb-6 glass-card rounded-2xl ai-glow">
+                    <div class="flex items-center gap-3">
+                        <button id="btn-scroll-toggle" onclick="toggleAutoScroll()" class="w-12 h-12 flex items-center justify-center bg-sky-600 rounded-full hover:bg-sky-500 transition-all">
+                            <i id="scroll-icon" class="fas fa-play"></i>
+                        </button>
+                        <div class="flex bg-slate-800 p-1 rounded-xl">
+                            <button onclick="setScrollSpeed(0.5, this)" class="px-4 py-1.5 rounded-lg text-xs transition-all hover:bg-slate-700">Pelan</button>
+                            <button onclick="setScrollSpeed(1, this)" class="px-4 py-1.5 rounded-lg text-xs transition-all hover:bg-slate-700 active-speed">Sedang</button>
+                            <button onclick="setScrollSpeed(2, this)" class="px-4 py-1.5 rounded-lg text-xs transition-all hover:bg-slate-700">Cepat</button>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="btn-translate" onclick="translateLyrics()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-sm font-semibold flex items-center gap-2 transition-all">
+                            <i class="fas fa-language text-lg"></i> Terjemahkan (AI)
+                        </button>
+                        <button onclick="copyLyrics()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-xl text-sm transition-all">
+                            <i class="fas fa-copy"></i> Salin
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Kolom Lirik Asli -->
+                    <div class="glass-card rounded-3xl p-8 md:p-12 fade-in">
+                        <div class="mb-8">
+                            <h3 id="lyrics-title" class="text-3xl font-bold text-white mb-2"></h3>
+                            <p id="lyrics-artist" class="text-sky-400 text-xl font-medium"></p>
+                        </div>
+                        <div id="lyrics-text" class="whitespace-pre-line text-slate-300 text-lg md:text-xl leading-loose"></div>
+                        <div class="h-32"></div>
+                    </div>
+
+                    <!-- Kolom Terjemahan (Hidden by default) -->
+                    <div id="translation-column" class="hidden glass-card rounded-3xl p-8 md:p-12 fade-in border-l-4 border-indigo-500">
+                        <div class="mb-8">
+                            <h3 class="text-3xl font-bold text-white mb-2 italic">Terjemahan Indonesia</h3>
+                            <p class="text-indigo-400 text-sm font-medium">Diterjemahkan secara cerdas oleh Gemini AI</p>
+                        </div>
+                        <div id="translation-text" class="whitespace-pre-line text-slate-300 text-lg md:text-xl leading-loose italic"></div>
+                        <div class="h-32"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overlay Loading AI -->
+    <div id="ai-loading-overlay" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] hidden flex flex-col items-center justify-center">
+        <div class="loader ease-linear rounded-full border-4 border-t-4 border-indigo-500 h-16 w-16 mb-4"></div>
+        <p class="text-white text-lg font-medium animate-pulse">Gemini sedang menerjemahkan lirik...</p>
+    </div>
+
+    <!-- Notifikasi -->
+    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 px-6 py-3 bg-green-600 text-white rounded-full shadow-lg opacity-0 transition-opacity pointer-events-none z-50">
+        Lirik disalin!
+    </div>
+
+    <script>
+        const apiKey = ""; // Diset oleh environment
+        const landingPage = document.getElementById('landing-page');
+        const mainApp = document.getElementById('main-app');
+        const searchInput = document.getElementById('search-input');
+        const suggestionsBox = document.getElementById('suggestions');
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const lyricsContainer = document.getElementById('lyrics-container');
+        const emptyState = document.getElementById('empty-state');
+        const scrollControls = document.getElementById('scroll-controls');
+        const translationColumn = document.getElementById('translation-column');
+        const aiOverlay = document.getElementById('ai-loading-overlay');
+        
+        let debounceTimer;
+        let isScrolling = false;
+        let scrollInterval;
+        let scrollSpeed = 1;
+        let currentLyrics = "";
+        let currentTitle = "";
+        let currentArtist = "";
+
+        function showSearch() {
+            landingPage.classList.add('hidden');
+            mainApp.classList.remove('hidden');
+            searchInput.focus();
+        }
+
+        async function apiCall(prompt) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }]
+            };
+
+            for (let i = 0; i < 5; i++) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await response.json();
+                    return data.candidates?.[0]?.content?.parts?.[0]?.text;
+                } catch (error) {
+                    await new Promise(res => setTimeout(res, Math.pow(2, i) * 1000));
+                }
+            }
+            throw new Error("Gagal menghubungi server.");
+        }
+
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim();
+            clearTimeout(debounceTimer);
+            if (query.length < 2) {
+                suggestionsBox.classList.add('hidden');
+                return;
+            }
+            debounceTimer = setTimeout(() => fetchSuggestions(query), 500);
+        });
+
+        async function fetchSuggestions(query) {
+            loadingSpinner.classList.remove('hidden');
+            try {
+                const prompt = `Berikan 5 saran lagu populer berdasarkan kata kunci "${query}". Berikan respon HANYA dalam format JSON array: [{"title": "Judul", "artist": "Penyanyi"}]`;
+                const responseText = await apiCall(prompt);
+                const cleanedJson = responseText.replace(/```json|```/g, '');
+                const suggestions = JSON.parse(cleanedJson);
+                renderSuggestions(suggestions);
+            } catch (error) {
+                console.error(error);
+            } finally {
+                loadingSpinner.classList.add('hidden');
+            }
+        }
+
+        function renderSuggestions(list) {
+            suggestionsBox.innerHTML = '';
+            if (list.length === 0) {
+                suggestionsBox.classList.add('hidden');
+                return;
+            }
+            list.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'suggest-item p-4 cursor-pointer transition-all border-b border-white/5 last:border-0 flex items-center';
+                div.innerHTML = `<i class="fas fa-music text-sky-500 mr-4 opacity-60"></i><div><div class="font-semibold">${item.title}</div><div class="text-sm text-slate-400">${item.artist}</div></div>`;
+                div.onclick = () => selectSong(item.title, item.artist);
+                suggestionsBox.appendChild(div);
+            });
+            suggestionsBox.classList.remove('hidden');
+        }
+
+        async function selectSong(title, artist) {
+            searchInput.value = `${title} - ${artist}`;
+            suggestionsBox.classList.add('hidden');
+            loadingSpinner.classList.remove('hidden');
+            stopAutoScroll();
+            translationColumn.classList.add('hidden');
+            
+            try {
+                const prompt = `Berikan lirik lengkap untuk lagu "${title}" oleh "${artist}". Tampilkan liriknya saja dengan rapi.`;
+                const lyrics = await apiCall(prompt);
+                currentLyrics = lyrics;
+                currentTitle = title;
+                currentArtist = artist;
+                displayLyrics(title, artist, lyrics);
+            } catch (error) {
+                alert("Gagal memuat lirik.");
+            } finally {
+                loadingSpinner.classList.add('hidden');
+            }
+        }
+
+        function displayLyrics(title, artist, lyrics) {
+            emptyState.classList.add('hidden');
+            lyricsContainer.classList.remove('hidden');
+            scrollControls.classList.remove('hidden');
+            document.getElementById('lyrics-title').innerText = title;
+            document.getElementById('lyrics-artist').innerText = artist;
+            document.getElementById('lyrics-text').innerText = lyrics;
+            window.scrollTo({ top: searchInput.offsetTop - 20, behavior: 'smooth' });
+        }
+
+        // FUNGSI TERJEMAHAN AI
+        async function translateLyrics() {
+            if (!currentLyrics) return;
+            aiOverlay.classList.remove('hidden');
+            
+            try {
+                const prompt = `Terjemahkan lirik lagu "${currentTitle}" oleh ${currentArtist} ke dalam Bahasa Indonesia. 
+                Gunakan gaya bahasa yang puitis dan bermakna, bukan sekadar terjemahan mesin kaku. 
+                Tampilkan hanya hasil terjemahannya saja. Lirik asli: \n\n${currentLyrics}`;
+                
+                const translation = await apiCall(prompt);
+                document.getElementById('translation-text').innerText = translation;
+                translationColumn.classList.remove('hidden');
+                
+                // Scroll agar terjemahan terlihat
+                translationColumn.scrollIntoView({ behavior: 'smooth' });
+            } catch (error) {
+                alert("Maaf, gagal menerjemahkan lirik saat ini.");
+            } finally {
+                aiOverlay.classList.add('hidden');
+            }
+        }
+
+        function toggleAutoScroll() {
+            if (isScrolling) stopAutoScroll();
+            else startAutoScroll();
+        }
+
+        function startAutoScroll() {
+            isScrolling = true;
+            document.getElementById('scroll-icon').className = 'fas fa-pause';
+            document.getElementById('btn-scroll-toggle').classList.replace('bg-sky-600', 'bg-amber-500');
+            scrollInterval = setInterval(() => {
+                window.scrollBy(0, scrollSpeed);
+                if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 10) stopAutoScroll();
+            }, 50);
+        }
+
+        function stopAutoScroll() {
+            isScrolling = false;
+            clearInterval(scrollInterval);
+            document.getElementById('scroll-icon').className = 'fas fa-play';
+            document.getElementById('btn-scroll-toggle').classList.replace('bg-amber-500', 'bg-sky-600');
+        }
+
+        function setScrollSpeed(speed, btn) {
+            scrollSpeed = speed;
+            document.querySelectorAll('.active-speed').forEach(el => el.classList.remove('active-speed'));
+            btn.classList.add('active-speed');
+        }
+
+        function copyLyrics() {
+            const text = document.getElementById('lyrics-text').innerText;
+            const dummy = document.createElement('textarea');
+            document.body.appendChild(dummy);
+            dummy.value = text;
+            dummy.select();
+            document.execCommand('copy');
+            document.body.removeChild(dummy);
+            const toast = document.getElementById('toast');
+            toast.style.opacity = '1';
+            setTimeout(() => { toast.style.opacity = '0'; }, 2000);
+        }
+
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
+                suggestionsBox.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
